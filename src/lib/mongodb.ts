@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import { MongoClient } from 'mongodb';
 
 // MongoDB connection URL - using environment variable with fallback
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecommerce';
@@ -48,6 +50,78 @@ async function connectDB() {
   }
 
   return cached.conn;
+}
+
+export async function ensureAdminAccount() {
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@ecommstore.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+  
+  try {
+    const client = await connectDB();
+    
+    // Define User Schema with validation
+    const userSchema = new mongoose.Schema({
+      email: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+      },
+      password: {
+        type: String,
+        required: true,
+      },
+      role: {
+        type: String,
+        enum: ['admin', 'user', 'guest'],
+        default: 'user',
+      },
+      name: {
+        type: String,
+        required: true,
+      },
+      lastLogin: Date,
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      }
+    });
+
+    // Add password hashing middleware
+    userSchema.pre('save', async function(next) {
+      if (this.isModified('password')) {
+        this.password = await bcrypt.hash(this.password, 10);
+      }
+      next();
+    });
+
+    const User = client.models.User || client.model('User', userSchema);
+
+    // Check if admin exists
+    const adminUser = await User.findOne({ email: adminEmail });
+    
+    if (!adminUser) {
+      // Create admin user
+      await User.create({
+        email: adminEmail,
+        password: adminPassword, // Will be hashed by the pre-save middleware
+        role: 'admin',
+        name: 'Admin',
+      });
+      
+      console.log('Default admin account created successfully');
+    } else {
+      console.log('Admin account already exists');
+    }
+  } catch (error) {
+    console.error('Error ensuring admin account:', error);
+    throw error; // Propagate error for proper handling
+  }
 }
 
 export default connectDB; 
