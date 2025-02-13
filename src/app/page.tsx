@@ -10,23 +10,23 @@ interface User {
   role: string;
 }
 
-const featuredProducts = [
-  {
-    id: 1,
-    name: 'Premium Headphones',
-    price: 199.99,
-    image: '/images/headphones.jpg',
-    category: 'Electronics',
-  },
-  {
-    id: 2,
-    name: 'Stylish Watch',
-    price: 299.99,
-    image: '/images/watch.jpg',
-    category: 'Accessories',
-  },
-  // Add more featured products as needed
-];
+interface Product {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  image: string;
+  stock: number;
+  featured: boolean;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  image: string;
+  itemCount: number;
+}
 
 const categories = [
   {
@@ -46,18 +46,36 @@ const categories = [
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+
+    // Fetch all products
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products');
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        setError('Failed to fetch products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   return (
     <DashboardLayout requireAuth={false}>
       {/* Hero Section with User Welcome */}
-      <section className="bg-indigo-600 text-white py-20">
+      <section className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl font-extrabold sm:text-5xl md:text-6xl">
@@ -69,24 +87,24 @@ export default function HomePage() {
             <div className="mt-10 space-x-4">
               <Link
                 href="/products"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 transition-colors duration-200"
               >
                 Shop Now
               </Link>
               {!user && (
                 <Link
                   href="/login"
-                  className="inline-flex items-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-indigo-500"
+                  className="inline-flex items-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-indigo-500 transition-colors duration-200"
                 >
                   Sign In
                 </Link>
               )}
               {user?.role === 'admin' && (
                 <Link
-                  href="/admin"
-                  className="inline-flex items-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-indigo-500"
+                  href="/admin/products"
+                  className="inline-flex items-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-indigo-500 transition-colors duration-200"
                 >
-                  Admin Dashboard
+                  Manage Products
                 </Link>
               )}
             </div>
@@ -139,40 +157,65 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Featured Products Section */}
+      {/* Products Section */}
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-gray-900 mb-8">
-            Featured Products
+            All Products
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden"
-              >
-                <div className="aspect-w-3 aspect-h-2">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="object-cover w-full h-48"
-                  />
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center text-red-600">{error}</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {products.map((product) => (
+                <div
+                  key={product._id}
+                  className="group bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-200 hover:scale-105"
+                >
+                  <div className="aspect-w-3 aspect-h-2 relative">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="object-cover w-full h-48"
+                    />
+                    {product.stock === 0 && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">Out of Stock</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600">
+                      {product.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-2 line-clamp-2">{product.description}</p>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                        {product.category}
+                      </span>
+                      <p className="text-2xl font-bold text-indigo-600">
+                        ${product.price.toFixed(2)}
+                      </p>
+                    </div>
+                    <button
+                      disabled={product.stock === 0}
+                      className={`mt-4 w-full py-2 px-4 rounded-md transition-colors duration-200 ${
+                        product.stock > 0
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                    </button>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {product.name}
-                  </h3>
-                  <p className="text-gray-500">{product.category}</p>
-                  <p className="mt-2 text-2xl font-bold text-indigo-600">
-                    ${product.price}
-                  </p>
-                  <button className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
-                    Add to Cart
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -187,16 +230,16 @@ export default function HomePage() {
               <Link
                 key={category.id}
                 href={`/categories/${category.id}`}
-                className="group"
+                className="group relative"
               >
-                <div className="relative rounded-lg overflow-hidden shadow-lg">
+                <div className="relative rounded-lg overflow-hidden shadow-lg transform transition duration-200 hover:scale-105">
                   <img
                     src={category.image}
                     alt={category.name}
-                    className="w-full h-48 object-cover group-hover:opacity-75 transition-opacity"
+                    className="w-full h-48 object-cover"
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-25 flex items-center justify-center">
-                    <div className="text-center">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
                       <h3 className="text-2xl font-bold text-white">
                         {category.name}
                       </h3>
