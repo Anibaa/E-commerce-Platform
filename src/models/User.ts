@@ -6,6 +6,8 @@ export interface IUser extends mongoose.Document {
   password: string;
   name: string;
   role: 'user' | 'admin';
+  phone?: string;
+  address?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -29,6 +31,14 @@ const userSchema = new mongoose.Schema<IUser>({
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
+  },
+  phone: {
+    type: String,
+    required: false,
+  },
+  address: {
+    type: String,
+    required: false,
   },
 }, {
   timestamps: true,
