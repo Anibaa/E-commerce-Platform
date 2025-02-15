@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useAuthModal } from '@/context/AuthModalContext';
+import toast from 'react-hot-toast';
 
 interface Review {
   _id: string;
@@ -32,6 +34,7 @@ export default function ProductDetails() {
   const [error, setError] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const { showLoginModal } = useAuthModal();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -57,22 +60,43 @@ export default function ProductDetails() {
     
     setIsAddingToCart(true);
     try {
-      const existingCart = JSON.parse(localStorage.getItem('cart') || '[]');
-      const existingItemIndex = existingCart.findIndex(
-        (item: any) => item._id === product._id
-      );
-
-      if (existingItemIndex > -1) {
-        existingCart[existingItemIndex].quantity += quantity;
-      } else {
-        existingCart.push({ ...product, quantity });
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showLoginModal('Please log in to add items to your cart');
+        setIsAddingToCart(false);
+        return;
       }
 
-      localStorage.setItem('cart', JSON.stringify(existingCart));
-      alert('Product added to cart!');
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId: product._id,
+          quantity
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          showLoginModal('Please log in to add items to your cart');
+          return;
+        }
+        throw new Error('Failed to add to cart');
+      }
+
+      // Show success message using toast
+      toast.success('Product added to cart!', {
+        icon: '🛍️',
+      });
+      
+      // Trigger cart update event
+      window.dispatchEvent(new Event('cartUpdate'));
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Failed to add product to cart');
+      toast.error('Failed to add product to cart');
     } finally {
       setIsAddingToCart(false);
     }

@@ -6,65 +6,154 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { FiTrash2, FiMinus, FiPlus, FiArrowLeft } from 'react-icons/fi';
+import { useAuthModal } from '@/context/AuthModalContext';
 
 interface CartItem {
   _id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
+  product: {
+    _id: string;
+    name: string;
+    description: string;
+    price: number;
+    image: string;
+    stock: number;
+  };
   quantity: number;
-  stock: number;
+}
+
+interface Cart {
+  _id: string;
+  items: CartItem[];
 }
 
 export default function CartPage() {
   const router = useRouter();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { showLoginModal } = useAuthModal();
+
+  const handleAuthRequired = () => {
+    showLoginModal('Please log in to view and manage your shopping cart');
+  };
+
+  const fetchCart = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        handleAuthRequired();
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/cart', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleAuthRequired();
+          return;
+        }
+        throw new Error('Failed to fetch cart');
+      }
+
+      const data = await response.json();
+      setCart(data);
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load cart items from localStorage
-    const loadCart = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartItems(cart);
-      setIsLoading(false);
-    };
-
-    loadCart();
-
-    // Listen for storage changes
-    window.addEventListener('storage', loadCart);
-    return () => window.removeEventListener('storage', loadCart);
+    fetchCart();
+    window.addEventListener('cartUpdate', fetchCart);
+    return () => window.removeEventListener('cartUpdate', fetchCart);
   }, []);
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    const updatedCart = cartItems.map(item => {
-      if (item._id === itemId) {
-        // Ensure quantity doesn't exceed stock or go below 1
-        const quantity = Math.min(Math.max(1, newQuantity), item.stock);
-        return { ...item, quantity };
+  const updateQuantity = async (productId: string, newQuantity: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        handleAuthRequired();
+        return;
       }
-      return item;
-    });
 
-    setCartItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId,
+          quantity: newQuantity
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleAuthRequired();
+          return;
+        }
+        throw new Error('Failed to update cart');
+      }
+
+      const updatedCart = await response.json();
+      setCart(updatedCart);
+    } catch (error) {
+      console.error('Error updating cart:', error);
+      alert('Failed to update quantity');
+    }
   };
 
-  const removeItem = (itemId: string) => {
-    const updatedCart = cartItems.filter(item => item._id !== itemId);
-    setCartItems(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
+  const removeItem = async (productId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        handleAuthRequired();
+        return;
+      }
+
+      const response = await fetch('/api/cart', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ productId }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleAuthRequired();
+          return;
+        }
+        throw new Error('Failed to remove item');
+      }
+
+      const updatedCart = await response.json();
+      setCart(updatedCart);
+    } catch (error) {
+      console.error('Error removing item:', error);
+      alert('Failed to remove item');
+    }
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    localStorage.setItem('cart', '[]');
+  const clearCart = async () => {
+    try {
+      await Promise.all(cart?.items.map(item => 
+        removeItem(item.product._id)
+      ) || []);
+      setCart(null);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      alert('Failed to clear cart');
+    }
   };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 100 ? 0 : 10;
-  const total = subtotal + shipping;
 
   if (isLoading) {
     return (
@@ -76,12 +165,17 @@ export default function CartPage() {
     );
   }
 
+  const subtotal = cart?.items.reduce((sum, item) => 
+    sum + (item.product.price * item.quantity), 0) || 0;
+  const shipping = subtotal > 100 ? 0 : 10;
+  const total = subtotal + shipping;
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
-          {cartItems.length > 0 && (
+          {cart && cart.items && cart.items.length > 0 && (
             <button
               onClick={clearCart}
               className="text-red-600 hover:text-red-700 font-medium"
@@ -91,7 +185,7 @@ export default function CartPage() {
           )}
         </div>
 
-        {cartItems.length === 0 ? (
+        {!cart?.items.length ? (
           <div className="text-center py-12">
             <div className="text-gray-500 mb-4">Your cart is empty</div>
             <Link
@@ -107,16 +201,16 @@ export default function CartPage() {
             {/* Cart Items */}
             <div className="lg:col-span-8">
               <div className="bg-white shadow-sm rounded-lg">
-                {cartItems.map((item) => (
+                {cart.items.map((item) => (
                   <div
-                    key={item._id}
+                    key={item.product._id}
                     className="flex items-center p-6 border-b border-gray-200 last:border-0"
                   >
                     {/* Product Image */}
                     <div className="relative h-24 w-24 flex-shrink-0">
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={item.product.image}
+                        alt={item.product.name}
                         fill
                         className="object-cover rounded-md"
                       />
@@ -127,14 +221,14 @@ export default function CartPage() {
                       <div className="flex justify-between">
                         <div>
                           <h3 className="text-lg font-medium text-gray-900">
-                            <Link href={`/products/${item._id}`} className="hover:text-indigo-600">
-                              {item.name}
+                            <Link href={`/products/${item.product._id}`} className="hover:text-indigo-600">
+                              {item.product.name}
                             </Link>
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+                          <p className="mt-1 text-sm text-gray-500">{item.product.description}</p>
                         </div>
                         <p className="text-lg font-medium text-gray-900">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          ${(item.product.price * item.quantity).toFixed(2)}
                         </p>
                       </div>
 
@@ -142,7 +236,7 @@ export default function CartPage() {
                         {/* Quantity Controls */}
                         <div className="flex items-center border border-gray-300 rounded-md">
                           <button
-                            onClick={() => updateQuantity(item._id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.product._id, item.quantity - 1)}
                             disabled={item.quantity <= 1}
                             className="p-2 text-gray-600 hover:text-gray-700 disabled:opacity-50"
                           >
@@ -150,8 +244,8 @@ export default function CartPage() {
                           </button>
                           <span className="px-4 py-2 text-gray-900">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                            disabled={item.quantity >= item.stock}
+                            onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
+                            disabled={item.quantity >= item.product.stock}
                             className="p-2 text-gray-600 hover:text-gray-700 disabled:opacity-50"
                           >
                             <FiPlus className="w-4 h-4" />
@@ -160,7 +254,7 @@ export default function CartPage() {
 
                         {/* Remove Button */}
                         <button
-                          onClick={() => removeItem(item._id)}
+                          onClick={() => removeItem(item.product._id)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <FiTrash2 className="w-5 h-5" />

@@ -1,16 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
 import AdminSidebar from './AdminSidebar';
-
-interface User {
-  name: string;
-  email: string;
-  role: string;
-}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,7 +13,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, requireAuth = false }: DashboardLayoutProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {

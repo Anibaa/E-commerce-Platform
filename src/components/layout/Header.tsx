@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { FiShoppingCart, FiUser, FiLogOut, FiMenu, FiX, FiHeart } from 'react-icons/fi';
 
 interface User {
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -21,19 +22,33 @@ export default function Header({ user, onLogout, onMobileMenuToggle, isMobileMen
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  useEffect(() => {
-    // Update cart count when cart changes
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      const totalItems = cart.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      setCartItemsCount(totalItems);
-    };
+  const updateCartCount = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
+      const response = await fetch('/api/cart', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const cart = await response.json();
+        const totalItems = cart.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+        setCartItemsCount(totalItems);
+      }
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+    }
+  };
+
+  useEffect(() => {
     // Initial count
     updateCartCount();
 
-    // Listen for storage changes
-    window.addEventListener('storage', updateCartCount);
+    // Listen for cart updates
+    window.addEventListener('cartUpdate', updateCartCount);
     
     // Listen for scroll
     const handleScroll = () => {
@@ -42,7 +57,7 @@ export default function Header({ user, onLogout, onMobileMenuToggle, isMobileMen
     window.addEventListener('scroll', handleScroll);
 
     return () => {
-      window.removeEventListener('storage', updateCartCount);
+      window.removeEventListener('cartUpdate', updateCartCount);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
