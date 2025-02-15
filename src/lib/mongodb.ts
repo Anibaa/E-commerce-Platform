@@ -9,6 +9,32 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
+let cachedClient: { client: MongoClient | null; promise: Promise<MongoClient> | null } = (global as any).mongoClient;
+
+if (!cachedClient) {
+  cachedClient = (global as any).mongoClient = { client: null, promise: null };
+}
+
+export async function connectToDatabase() {
+  if (cachedClient.client) {
+    return { client: cachedClient.client, db: cachedClient.client.db() };
+  }
+
+  if (!cachedClient.promise) {
+    cachedClient.promise = MongoClient.connect(MONGODB_URI);
+  }
+
+  try {
+    cachedClient.client = await cachedClient.promise;
+  } catch (e) {
+    cachedClient.promise = null;
+    throw e;
+  }
+
+  return { client: cachedClient.client, db: cachedClient.client.db() };
+}
+
+// Mongoose connection for models
 let cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = (global as any).mongoose;
 
 if (!cached) {

@@ -161,7 +161,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div>
+          <div className="space-y-3">
             <button
               type="submit"
               disabled={loading}
@@ -179,6 +179,10 @@ export default function LoginPage() {
                 'Sign in'
               )}
             </button>
+
+            <Link href="/" className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+              Continue as Guest
+            </Link>
           </div>
         </form>
       </div>
