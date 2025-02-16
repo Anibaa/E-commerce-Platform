@@ -162,7 +162,7 @@ export default function Footer() {
         {/* Footer Bottom */}
         <div className="py-4 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <div className="text-sm text-gray-500">
-            © {new Date().getFullYear()} EcommStore. All rights reserved.
+            © {new Date().getFullYear()} Aniba Yassine. All rights reserved.
           </div>
           
           {/* Social Links */}
