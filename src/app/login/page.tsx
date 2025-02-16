@@ -54,12 +54,18 @@ export default function LoginPage() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redirect based on role
-      if (data.user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/');
+      // Check if there's a stored admin status and redirect accordingly
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser.role === 'admin') {
+          router.push('/admin');
+          return;
+        }
       }
+
+      // For non-admin users, redirect to home
+      router.push('/');
     } catch (err: any) {
       setError(err.message);
     } finally {

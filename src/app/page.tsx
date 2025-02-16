@@ -6,6 +6,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductCard from '@/components/ProductCard';
 import { FiArrowRight, FiStar, FiTruck, FiLock, FiRefreshCw } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 
 interface User {
   name: string;
@@ -55,11 +56,23 @@ export default function HomePage() {
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      
+      // If user is admin, handle accordingly
+      if (parsedUser.role === 'admin') {
+        // Clear local storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Redirect to login
+        router.push('/login');
+        return;
+      }
     }
 
     const fetchProducts = async () => {
@@ -84,7 +97,7 @@ export default function HomePage() {
     };
 
     fetchProducts();
-  }, []);
+  }, [router]);
 
   return (
     <DashboardLayout>
