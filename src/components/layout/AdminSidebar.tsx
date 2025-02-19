@@ -14,7 +14,8 @@ import {
   FiTag,
   FiMessageSquare,
   FiChevronDown,
-  FiChevronRight
+  FiChevronRight,
+  FiCalendar
 } from 'react-icons/fi';
 
 interface MenuItem {
@@ -40,6 +41,14 @@ const menuItems: MenuItem[] = [
       { title: 'All Products', path: '/admin/products' },
       { title: 'Add Product', path: '/admin/products/add' },
       { title: 'Categories', path: '/admin/products/categories' },
+    ],
+  },
+  {
+    title: 'Appointments',
+    icon: <FiCalendar className="w-5 h-5" />,
+    submenu: [
+      { title: 'Manage Schedule', path: '/admin/appointments/schedule' },
+      { title: 'View Appointments', path: '/admin/appointments' },
     ],
   },
   {
