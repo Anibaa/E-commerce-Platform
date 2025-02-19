@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiEye, FiEyeOff, FiLock, FiMail } from 'react-icons/fi';
@@ -14,6 +14,11 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    // Initialize admin account
+    fetch('/api/admin/init').catch(console.error);
+  }, []);
 
   const validateForm = () => {
     if (!formData.email || !formData.password) {
